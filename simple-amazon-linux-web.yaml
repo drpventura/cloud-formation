@@ -1,0 +1,36 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an Amazon Linux Web Server based on https://github.com/widdix/learn-cloudformation/blob/master/lab0-create-stack/demo.yaml, last access 9/6/2017
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: ami-ea87a78f
+      InstanceType: t2.micro
+      SecurityGroups: 
+      - !Ref WebserverSecurityGroup
+      Tags:
+      - Key: Name
+        Value: Amazon Linux Web Server
+      UserData:
+        'Fn::Base64': !Sub |
+          #!/bin/bash -x
+          yum install -y httpd
+          cd /var/www/html
+          echo "<h1>Dr. V's CloudFormed Server</h1><p>This page created entirely by CloudFormation</p>" >index.html
+          service httpd start
+  WebserverSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: hello-world-webserver
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+Outputs:
+  HelloWorldURL:
+    Description: The url pointing to our page.
+    Value: !Sub 'http://${EC2Instance.PublicIp}'
+          
