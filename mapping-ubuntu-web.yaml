@@ -76,6 +76,9 @@ Resources:
 Outputs:
   HelloWorldURL:
     Description: The url pointing to our page.
+    Value: !Sub 'http://${EC2Instance.PublicIp}'
+  PublicDNS-URL:
+    Description: The url pointing to our page.
     Value: !Sub 'http://${EC2Instance.PublicDnsName}'
   Region:
     Value: !Ref 'AWS::Region'
