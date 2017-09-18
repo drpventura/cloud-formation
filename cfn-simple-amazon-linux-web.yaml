@@ -1,0 +1,70 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an Amazon Linux Web Server based on https://github.com/widdix/learn-cloudformation/blob/master/lab0-create-stack/demo.yaml, last access 9/6/2017, and on https://github.com/widdix/learn-cloudformation/blob/master/lab8-cfn-init/stub.yaml, last access 9/17/2017
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-4fffc834
+    us-east-2:
+      AMI: ami-ea87a78f
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+          files:
+            "/var/www/html/index.html":
+              content: |
+               <html>
+                 <body>
+                   <h1>Dr. V's CloudFormed Server</h1>
+                   <h2>with CloudFormation Helper Scripts</h2>
+                   <p>Hello World!</p>
+                 </body>
+                </html>
+              mode: '000644'
+              owner: root
+              group: root
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', 'AMI']
+      InstanceType: t2.micro
+      SecurityGroups: 
+      - !Ref WebserverSecurityGroup
+      Tags:
+      - Key: Name
+        Value: Amazon Linux Web Server
+      UserData:
+        'Fn::Base64': !Sub |
+          #!/bin/bash -ex
+           yum update -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v -s ${AWS::StackName} -r EC2Instance --region ${AWS::Region}
+  WebserverSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: hello-world-webserver
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+
+Outputs:
+  HelloWorldURL:
+    Description: The url pointing to our page.
+    Value: !Sub 'http://${EC2Instance.PublicIp}'
+  PublicDNS:
+    Description: The Public DNS
+    Value: !Sub '${EC2Instance.PublicDnsName}'
+          
