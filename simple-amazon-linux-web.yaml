@@ -14,7 +14,7 @@ Resources:
       - Key: Name
         Value: Amazon Linux Web Server
       UserData:
-        'Fn::Base64': !Sub |
+        'Fn::Base64': |
           #!/bin/bash -x
           yum install -y httpd
           cd /var/www/html
