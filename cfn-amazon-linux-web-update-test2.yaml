@@ -76,7 +76,8 @@ Resources:
                 runas=root
               mode: '000400'
               owner: root
-              group: root
+              group: root                
+
           services:
             sysvinit:
               httpd:
@@ -112,7 +113,6 @@ Resources:
           #!/bin/bash -ex
            yum update -y aws-cfn-bootstrap
           /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets InstallAndRun --region ${AWS::Region}
-          
           # Signal the status from cfn-init (via $?)
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
 
@@ -125,10 +125,11 @@ Resources:
         FromPort: 80
         IpProtocol: tcp
         ToPort: 80
-      - IpProtocol: tcp
-        FromPort: '22'
-        ToPort: '22'
-        CidrIp: !Ref SSHLocation
+      - CidrIp: !Ref SSHLocation
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+
 
 Outputs:
   HelloWorldURL:

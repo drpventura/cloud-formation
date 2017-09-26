@@ -15,7 +15,7 @@ Parameters:
     Default: 131.247.0.0/16
     AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
     ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
-    
+
 Mappings:
   RegionMap:
     us-east-1:
@@ -28,10 +28,7 @@ Resources:
     Type: AWS::EC2::Instance
     Metadata:
       AWS::CloudFormation::Init:
-        configSets:
-          InstallAndRun:
-            - Install   
-        Install:
+        config:
           packages:
             yum:
               httpd: []
@@ -62,11 +59,12 @@ Resources:
                 [cfn-auto-reloader-hook]
                 triggers=post.update
                 path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init
-                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets InstallAndRun --region ${AWS::Region}
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
                 runas=root
               mode: '000400'
               owner: root
-              group: root
+              group: root                
+
           services:
             sysvinit:
               httpd:
@@ -92,8 +90,7 @@ Resources:
         'Fn::Base64': !Sub |
           #!/bin/bash -ex
            yum update -y aws-cfn-bootstrap
-          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --configsets InstallAndRun --region ${AWS::Region}
-          
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
           # Signal the status from cfn-init (via $?)
           /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
 
@@ -106,10 +103,10 @@ Resources:
         FromPort: 80
         IpProtocol: tcp
         ToPort: 80
-      - IpProtocol: tcp
-        FromPort: '22'
-        ToPort: '22'
-        CidrIp: !Ref SSHLocation
+      - CidrIp: !Ref SSHLocation
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
 
 Outputs:
   HelloWorldURL:
