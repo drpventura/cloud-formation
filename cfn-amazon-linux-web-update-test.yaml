@@ -1,0 +1,120 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Creates an Amazon Linux Web Server based on https://github.com/widdix/learn-cloudformation/blob/master/lab0-create-stack/demo.yaml, last access 9/6/2017, and on https://github.com/widdix/learn-cloudformation/blob/master/lab8-cfn-init/stub.yaml, last access 9/17/2017
+
+Parameters:
+  KeyName:
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+    Type: 'AWS::EC2::KeyPair::KeyName'
+    ConstraintDescription: must be the name of an existing EC2 KeyPair.
+  SSHLocation:
+    Description: ' The IP address range that can be used to SSH to the EC2 instances'
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 131.247.0.0/16
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+
+Mappings:
+  RegionMap:
+    us-east-1:
+      AMI: ami-4fffc834
+    us-east-2:
+      AMI: ami-ea87a78f
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              httpd: []
+              mysql-server: []
+          files:
+            "/var/www/html/index.html":
+              content: |
+               <html>
+                 <body>
+                   <h1>Dr. V's CloudFormed Server</h1>
+                   <h2>with CloudFormation Helper Scripts</h2>
+                   <p>Hello World!</p>
+                 </body>
+                </html>
+              mode: '000644'
+              owner: root
+              group: root
+            /etc/cfn/cfn-hup.conf:
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+                interval=1
+              mode: '000400'
+              owner: root
+              group: root
+            /etc/cfn/hooks.d/cfn-auto-reloader.conf:
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.EC2Instance.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+                runas=root
+              mode: '000400'
+              owner: root
+              group: root                
+          services:
+            sysvinit:
+              httpd:
+                enabled: 'true'
+                ensureRunning: 'true'
+              mysqld:
+                enabled: 'true'
+                ensureRunning: 'true'
+              cfn-hup:
+                enabled: 'true'
+                ensureRunning: 'true'
+                files:
+                  - /etc/cfn/cfn-hup.conf
+                  - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+
+    Properties:
+      ImageId: !FindInMap [RegionMap, !Ref 'AWS::Region', 'AMI']
+      InstanceType: t2.micro
+      SecurityGroups: 
+      - !Ref WebserverSecurityGroup
+      Tags:
+      - Key: Name
+        Value: Amazon Linux Web Server
+      KeyName: !Ref KeyName
+      UserData:
+        'Fn::Base64': !Sub |
+          #!/bin/bash -ex
+           yum update -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+          # Signal the status from cfn-init (via $?)
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource EC2Instance --region ${AWS::Region}
+  WebserverSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: hello-world-webserver
+      SecurityGroupIngress:
+      - CidrIp: 0.0.0.0/0
+        FromPort: 80
+        IpProtocol: tcp
+        ToPort: 80
+      - CidrIp: !Ref SSHLocation
+        FromPort: 22
+        IpProtocol: tcp
+        ToPort: 22
+
+Outputs:
+  HelloWorldURL:
+    Description: The url pointing to our page.
+    Value: !Sub 'http://${EC2Instance.PublicIp}'
+  PublicDNS:
+    Description: The Public DNS
+    Value: !Sub '${EC2Instance.PublicDnsName}'
+          
